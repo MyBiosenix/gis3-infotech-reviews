@@ -43,6 +43,7 @@ async function sendModerationEmail(review) {
   const rejectUrl = `${APP_URL}/api/reviews/${id}/moderate?action=reject&token=${rejectToken}`;
 
   const author = review.isAnonymous ? 'Anonymous' : review.author || 'Anonymous';
+  const adminDashboardUrl = `${(process.env.CLIENT_ORIGIN || 'http://localhost:3000').replace(/\/+$/, '')}/admin/reviews`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #222;">
@@ -51,6 +52,7 @@ async function sendModerationEmail(review) {
 
       <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
         <tr><td style="padding: 4px 0; color: #666;">Author</td><td style="padding: 4px 0;">${escapeHtml(author)}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Dashboard</td><td style="padding: 4px 0;">${escapeHtml(review.source)}</td></tr>
         <tr><td style="padding: 4px 0; color: #666;">Work Environment</td><td style="padding: 4px 0;">${review.ratings.workEnvironment}/5</td></tr>
         <tr><td style="padding: 4px 0; color: #666;">Salary & Benefits</td><td style="padding: 4px 0;">${review.ratings.salaryBenefits}/5</td></tr>
         <tr><td style="padding: 4px 0; color: #666;">Management</td><td style="padding: 4px 0;">${review.ratings.management}/5</td></tr>
@@ -61,7 +63,8 @@ async function sendModerationEmail(review) {
 
       <div style="margin-top: 24px;">
         <a href="${approveUrl}" style="display: inline-block; background: #16a34a; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; margin-right: 10px;">Approve</a>
-        <a href="${rejectUrl}" style="display: inline-block; background: #dc2626; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: 600;">Reject</a>
+        <a href="${rejectUrl}" style="display: inline-block; background: #dc2626; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; margin-right: 10px;">Reject</a>
+        <a href="${adminDashboardUrl}" style="display: inline-block; background: #3f007d; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: 600;">Edit in admin</a>
       </div>
     </div>
   `;

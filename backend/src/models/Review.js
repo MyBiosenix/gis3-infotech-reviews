@@ -115,7 +115,7 @@ const reviewSchema = new mongoose.Schema(
     source: {
       type: String,
       enum: {
-        values: ['GIS3 Infotech', 'Trustpilot', 'Glassdoor'],
+        values: ['GIS3 Infotech', 'Google', 'Trustpilot', 'Glassdoor'],
         message: 'Invalid review source',
       },
       default: 'GIS3 Infotech',
@@ -186,6 +186,7 @@ reviewSchema.virtual('displayAuthor').get(function () {
 reviewSchema.index({ createdAt: -1 });
 reviewSchema.index({ companyName: 1 });
 reviewSchema.index({ status: 1, createdAt: -1 });
+reviewSchema.index({ source: 1, status: 1, createdAt: -1 });
 reviewSchema.index({ overallRating: -1 });
 
 module.exports = mongoose.model('Review', reviewSchema);

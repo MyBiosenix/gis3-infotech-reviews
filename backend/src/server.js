@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const reviewsRouter = require('./routes/reviews');
+const adminReviewsRouter = require('./routes/adminReviews');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -13,6 +14,7 @@ app.use(express.json());
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use('/api/reviews', reviewsRouter);
+app.use('/api/admin/reviews', adminReviewsRouter);
 
 // Basic error handler
 app.use((err, req, res, next) => {

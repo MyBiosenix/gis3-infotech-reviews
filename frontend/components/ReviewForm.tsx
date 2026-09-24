@@ -15,6 +15,7 @@ import {
   type EmploymentStatus,
   type NewReview,
   type ReviewRatings,
+  type ReviewSource,
 } from '@/lib/api';
 
 type Props = {
@@ -56,6 +57,13 @@ const employmentStatusOptions: Array<
   'Contract Employee',
 ];
 
+const reviewSourceOptions: ReviewSource[] = [
+  'GIS3 Infotech',
+  'Google',
+  'Trustpilot',
+  'Glassdoor',
+];
+
 const durationOptions: Array<
   Exclude<EmploymentDuration, ''>
 > = [
@@ -81,6 +89,7 @@ export default function ReviewForm({
   onClose,
 }: Props) {
   const [companyName, setCompanyName] = useState('gisinfotech Solutions');
+  const [source, setSource] = useState<ReviewSource>('GIS3 Infotech');
   const [jobTitle, setJobTitle] = useState('');
 
   const [employmentStatus, setEmploymentStatus] =
@@ -119,7 +128,8 @@ export default function ReviewForm({
   }
 
   function resetForm() {
-    setCompanyName('');
+    setCompanyName('gisinfotech Solutions');
+    setSource('GIS3 Infotech');
     setJobTitle('');
     setEmploymentStatus('');
     setDuration('');
@@ -205,7 +215,7 @@ export default function ReviewForm({
 
       isAnonymous: anonymous,
 
-      source: 'GIS3 Infotech',
+      source,
     };
 
     try {
@@ -280,6 +290,32 @@ export default function ReviewForm({
               maxLength={120}
               disabled={submitting}
             />
+          </Field>
+        </div>
+
+        <div className="mt-6">
+          <Field label="Choose review dashboard" required>
+            <div className="relative">
+              <select
+                value={source}
+                onChange={(event) => {
+                  setSource(event.target.value as ReviewSource);
+                  setError(null);
+                }}
+                disabled={submitting}
+                className={`${inputClasses} appearance-none pr-12`}
+              >
+                {reviewSourceOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-400" />
+            </div>
+            <p className="mt-2 text-xs leading-5 text-neutral-400">
+              After admin approval, this review will appear only on the selected dashboard.
+            </p>
           </Field>
         </div>
 

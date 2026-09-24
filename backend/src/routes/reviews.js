@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const { sendModerationEmail } = require('../utils/mailer');
 const { verifyModerationToken } = require('../utils/moderationToken');
+const { requireAdminKey } = require('../middleware/adminAuth');
 
 const router = express.Router();
 
@@ -12,7 +13,6 @@ const router = express.Router();
  * Query parameters:
  * ?companyName=GIS3 Infotech
  * ?source=GIS3 Infotech
- * ?status=approved
  * ?employmentStatus=Former Employee
  * ?minRating=3
  * ?page=1
@@ -23,7 +23,6 @@ router.get('/', async (req, res, next) => {
     const {
       companyName,
       source,
-      status,
       employmentStatus,
       minRating,
       page = 1,
@@ -43,11 +42,8 @@ router.get('/', async (req, res, next) => {
       filter.source = source;
     }
 
-    /*
-     * For a public review page, it is better to show only approved reviews.
-     * Passing ?status=pending or ?status=rejected can be used by an admin page.
-     */
-    filter.status = status || 'approved';
+    // Public API only exposes approved reviews. Admin moderation uses /api/admin/reviews.
+    filter.status = 'approved';
 
     if (employmentStatus) {
       filter['employmentDetails.employmentStatus'] = employmentStatus;
@@ -188,7 +184,7 @@ router.get('/:id', async (req, res, next) => {
       });
     }
 
-    const review = await Review.findById(id).lean();
+    const review = await Review.findOne({ _id: id, status: 'approved' }).lean();
 
     if (!review) {
       return res.status(404).json({
@@ -362,7 +358,7 @@ router.get('/:id/moderate', async (req, res) => {
  *   "rejectionReason": "Reason here"
  * }
  */
-router.patch('/:id/status', async (req, res, next) => {
+router.patch('/:id/status', requireAdminKey, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status, rejectionReason = '' } = req.body;
@@ -403,8 +399,7 @@ router.patch('/:id/status', async (req, res, next) => {
       id,
       {
         $set: {
-          status,
-          rejectionReason:
+              rejectionReason:
             status === 'rejected'
               ? String(rejectionReason).trim()
               : '',
@@ -447,7 +442,7 @@ router.patch('/:id/status', async (req, res, next) => {
  *
  * This should normally be protected with admin middleware.
  */
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireAdminKey, async (req, res, next) => {
   try {
     const { id } = req.params;
 

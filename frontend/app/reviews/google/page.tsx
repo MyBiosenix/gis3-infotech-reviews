@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
@@ -19,6 +19,7 @@ import {
 import { MdReviews } from "react-icons/md";
 
 import Navbar from "@/components/Navbar";
+import { getReviews, type Review } from "@/lib/api";
 
 import mymap from "@/assets/mymap.png";
 import building from "@/assets/building.webp";
@@ -50,10 +51,7 @@ type ReviewItem = {
   image: StaticImageData;
   review: string;
   time: string;
-
-  // Individual user rating
   rating: number;
-
   reply?: string;
 };
 
@@ -64,7 +62,7 @@ type WorkingHour = {
 };
 
 /* =========================================================
-   REVIEWS
+   STATIC REVIEWS
 ========================================================= */
 
 const allReviews: ReviewItem[] = [
@@ -166,15 +164,6 @@ const allReviews: ReviewItem[] = [
     reply: "Thank you, Raju! Glad to know you had a great experience.",
   },
 
-  // {
-  //   name: "Anuj Mota",
-  //   image: user1,
-  //   rating: 4.5,
-  //   review:
-  //     "It's best for people who want to work from home. The team is very supportive. I am really happy that I believed in this and got paid for my work.",
-  //   time: "3 days ago",
-  // },
-
   {
     name: "Kajal Kamra",
     image: review6,
@@ -263,16 +252,6 @@ function StarRating({
       aria-label={`${rating} out of 5 stars`}
     >
       {[1, 2, 3, 4, 5].map((star) => {
-        /*
-          Example:
-
-          5   = ★★★★★
-          4.5 = ★★★★½
-          4   = ★★★★☆
-          3.5 = ★★★½☆
-          3   = ★★★☆☆
-        */
-
         if (rating >= star) {
           return <FaStar key={star} />;
         }
@@ -298,17 +277,60 @@ function ReviewsComp() {
 
   const [showModal, setShowModal] = useState(false);
 
+  /*
+   * Approved Google reviews coming from database.
+   */
+  const [approvedReviews, setApprovedReviews] = useState<Review[]>([]);
+
   const orderedWeekDays = useMemo(() => getOrderedWeekDays(), []);
 
   const todayHours = orderedWeekDays[0];
 
-  /* =======================================================
+  /* =========================================================
+     FETCH APPROVED GOOGLE REVIEWS
+  ========================================================= */
+
+  useEffect(() => {
+    let active = true;
+
+    const loadApprovedReviews = async () => {
+      try {
+        const data = await getReviews({
+          source: "Google",
+          limit: 50,
+        });
+
+        if (active) {
+          setApprovedReviews(data.reviews || []);
+        }
+      } catch (error) {
+        console.error(
+          "Unable to load approved Google reviews:",
+          error
+        );
+      }
+    };
+
+    loadApprovedReviews();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  /*
+   * Static reviews + database approved Google reviews
+   */
+  const totalReviews =
+    allReviews.length + approvedReviews.length;
+
+  /* =========================================================
      LOAD MORE
-  ======================================================= */
+  ========================================================= */
 
   const loadMoreReviews = () => {
     setVisibleCount((prev) =>
-      Math.min(prev + 5, allReviews.length)
+      Math.min(prev + 5, totalReviews)
     );
   };
 
@@ -323,6 +345,7 @@ function ReviewsComp() {
         ================================================= */}
 
         <div className="border-b border-slate-200 bg-white">
+
           <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
 
             <div className="flex flex-col justify-between gap-7 lg:flex-row lg:items-end">
@@ -370,6 +393,7 @@ function ReviewsComp() {
             </div>
 
           </div>
+
         </div>
 
         {/* =================================================
@@ -384,7 +408,9 @@ function ReviewsComp() {
 
           <main className="min-w-0">
 
-            {/* Rating Overview */}
+            {/* =================================================
+                RATING OVERVIEW
+            ================================================= */}
 
             <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_5px_25px_rgba(15,23,42,0.04)]">
 
@@ -413,7 +439,7 @@ function ReviewsComp() {
 
                 </div>
 
-                {/* Verified */}
+                {/* Customer feedback */}
 
                 <div className="flex items-center gap-4 p-5 sm:p-6">
 
@@ -437,7 +463,7 @@ function ReviewsComp() {
 
                 </div>
 
-                {/* Support */}
+                {/* Share */}
 
                 <div className="flex items-center gap-4 p-5 sm:p-6">
 
@@ -482,9 +508,9 @@ function ReviewsComp() {
                   Showing{" "}
                   {Math.min(
                     visibleCount,
-                    allReviews.length
+                    totalReviews
                   )}{" "}
-                  of {allReviews.length} reviews
+                  of {totalReviews} reviews
 
                 </p>
 
@@ -498,8 +524,18 @@ function ReviewsComp() {
 
             <div className="space-y-4">
 
+              {/* =================================================
+                  STATIC REVIEWS
+              ================================================= */}
+
               {allReviews
-                .slice(0, visibleCount)
+                .slice(
+                  0,
+                  Math.min(
+                    visibleCount,
+                    allReviews.length
+                  )
+                )
                 .map((item, index) => (
 
                   <article
@@ -512,6 +548,8 @@ function ReviewsComp() {
                     <div className="flex items-start justify-between gap-4">
 
                       <div className="flex min-w-0 items-center gap-3.5">
+
+                        {/* Profile image */}
 
                         <div className="relative shrink-0">
 
@@ -569,17 +607,17 @@ function ReviewsComp() {
 
                       </div>
 
-                      {/* Desktop rating badge */}
+                      {/* Desktop rating */}
 
                       <div className="hidden rounded-lg bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-500 sm:block">
+
                         {item.rating.toFixed(1)}
+
                       </div>
 
                     </div>
 
-                    {/* =================================================
-                        REVIEW BODY
-                    ================================================= */}
+                    {/* Review */}
 
                     <p className="mt-5 text-[13px] leading-7 text-slate-600 sm:text-sm">
 
@@ -587,9 +625,7 @@ function ReviewsComp() {
 
                     </p>
 
-                    {/* =================================================
-                        COMPANY RESPONSE
-                    ================================================= */}
+                    {/* Company response */}
 
                     {item.reply && (
 
@@ -629,13 +665,145 @@ function ReviewsComp() {
 
                 ))}
 
+              {/* =================================================
+                  DATABASE APPROVED GOOGLE REVIEWS
+
+                  These start ONLY after all static reviews.
+                  So they appear after Neha Gupta.
+              ================================================= */}
+
+              {visibleCount > allReviews.length &&
+                approvedReviews
+                  .slice(
+                    0,
+                    Math.max(
+                      0,
+                      visibleCount - allReviews.length
+                    )
+                  )
+                  .map((review) => {
+
+                    const rating = Number(
+                      review.overallRating || 0
+                    );
+
+                    const reviewerName =
+                      review.author?.trim() ||
+                      "Anonymous";
+
+                    const firstLetter =
+                      reviewerName
+                        .charAt(0)
+                        .toUpperCase();
+
+                    return (
+
+                      <article
+                        key={review._id}
+                        className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_4px_18px_rgba(15,23,42,0.035)] transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] sm:p-6"
+                      >
+
+                        {/* Reviewer */}
+
+                        <div className="flex items-start justify-between gap-4">
+
+                          <div className="flex min-w-0 items-center gap-3.5">
+
+                            {/* Dynamic profile circle */}
+
+                            <div className="relative shrink-0">
+
+                              <div className="flex h-[50px] w-[50px] items-center justify-center rounded-full border-2 border-white bg-[#ff5b02] text-lg font-black text-white shadow-sm sm:h-[54px] sm:w-[54px]">
+
+                                {firstLetter}
+
+                              </div>
+
+                              <span className="absolute -bottom-0.5 -right-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 border-white bg-[#ff5b02]">
+
+                                <FaCheckCircle className="text-[9px] text-white" />
+
+                              </span>
+
+                            </div>
+
+                            <div className="min-w-0">
+
+                              <div className="flex flex-wrap items-center gap-2">
+
+                                <h3 className="truncate text-sm font-bold text-slate-900 sm:text-[15px]">
+
+                                  {reviewerName}
+
+                                </h3>
+
+                                <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#ff5b02]">
+
+                                  Verified
+
+                                </span>
+
+                              </div>
+
+                              {/* Dynamic review rating */}
+
+                              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+
+                                <StarRating rating={rating} />
+
+                                <span className="text-[11px] font-semibold text-slate-500">
+
+                                  {rating.toFixed(1)}
+
+                                </span>
+
+                                <span className="text-slate-300">
+                                  •
+                                </span>
+
+                                <span className="text-[11px] text-slate-400">
+
+                                  Recently
+
+                                </span>
+
+                              </div>
+
+                            </div>
+
+                          </div>
+
+                          {/* Desktop rating */}
+
+                          <div className="hidden rounded-lg bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-500 sm:block">
+
+                            {rating.toFixed(1)}
+
+                          </div>
+
+                        </div>
+
+                        {/* Dynamic review */}
+
+                        <p className="mt-5 whitespace-pre-wrap text-[13px] leading-7 text-slate-600 sm:text-sm">
+
+                          “{review.experience}”
+
+                        </p>
+
+                      </article>
+
+                    );
+
+                  })}
+
             </div>
 
             {/* =================================================
                 LOAD MORE
             ================================================= */}
 
-            {visibleCount < allReviews.length && (
+            {visibleCount < totalReviews && (
 
               <div className="mt-7 flex justify-center">
 
@@ -732,13 +900,17 @@ function ReviewsComp() {
                 <div>
 
                   <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">
+
                     Company profile
+
                   </span>
 
                   <div className="mt-1.5 flex items-center gap-2">
 
                     <h2 className="text-xl font-extrabold text-slate-900">
+
                       GIS3 Infotech
+
                     </h2>
 
                     <FaCheckCircle className="shrink-0 text-[15px] text-[#ff5b02]" />
@@ -753,7 +925,9 @@ function ReviewsComp() {
                     />
 
                     <span className="text-[11px] text-slate-500">
+
                       376 reviews
+
                     </span>
 
                   </div>
@@ -761,7 +935,9 @@ function ReviewsComp() {
                 </div>
 
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white">
+
                   4.2
+
                 </div>
 
               </div>
@@ -829,7 +1005,9 @@ function ReviewsComp() {
                 <div>
 
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+
                     Office Address
+
                   </p>
 
                   <p className="mt-1.5 text-xs leading-6 text-slate-600">
@@ -858,7 +1036,9 @@ function ReviewsComp() {
                 <div className="min-w-0 flex-1">
 
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+
                     Working Hours
+
                   </p>
 
                   <details className="group mt-1.5">
@@ -868,7 +1048,9 @@ function ReviewsComp() {
                       <div>
 
                         <p className="text-xs font-bold text-slate-800">
+
                           {todayHours.day}
+
                         </p>
 
                         <p
@@ -878,13 +1060,17 @@ function ReviewsComp() {
                               : "text-emerald-600"
                           }`}
                         >
+
                           {todayHours.time}
+
                         </p>
 
                       </div>
 
                       <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-sm font-medium text-slate-600 transition group-open:rotate-45">
+
                         +
+
                       </span>
 
                     </summary>
@@ -901,7 +1087,9 @@ function ReviewsComp() {
                           >
 
                             <span className="text-slate-500">
+
                               {day}
+
                             </span>
 
                             <span
@@ -911,7 +1099,9 @@ function ReviewsComp() {
                                   : "font-semibold text-slate-700"
                               }
                             >
+
                               {time}
+
                             </span>
 
                           </div>
@@ -939,7 +1129,9 @@ function ReviewsComp() {
                   <div>
 
                     <p className="text-xs font-bold text-slate-800">
+
                       Customer Support
+
                     </p>
 
                     <p className="mt-1 text-[11px] leading-5 text-slate-500">
@@ -974,7 +1166,9 @@ function ReviewsComp() {
 
             <div
               className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl sm:p-7"
-              onClick={(event) => event.stopPropagation()}
+              onClick={(event) =>
+                event.stopPropagation()
+              }
             >
 
               <div className="flex items-start justify-between gap-4">
@@ -982,22 +1176,30 @@ function ReviewsComp() {
                 <div>
 
                   <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#ff5b02]">
+
                     Customer Feedback
+
                   </span>
 
                   <h3 className="mt-1.5 text-xl font-extrabold text-slate-900">
+
                     Share your experience
+
                   </h3>
 
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() =>
+                    setShowModal(false)
+                  }
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg text-slate-500 transition hover:bg-slate-200"
                   aria-label="Close review modal"
                 >
+
                   ×
+
                 </button>
 
               </div>
@@ -1013,10 +1215,14 @@ function ReviewsComp() {
 
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() =>
+                    setShowModal(false)
+                  }
                   className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
+
                   Cancel
+
                 </button>
 
                 <Link
@@ -1039,6 +1245,7 @@ function ReviewsComp() {
         )}
 
       </section>
+
     </>
   );
 }
